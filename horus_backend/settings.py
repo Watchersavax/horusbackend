@@ -20,14 +20,10 @@ import os
 # Static files settings  
 STATIC_URL = "/static/"  
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # Collects static files here  
-
-# Enable WhiteNoise for serving static files  
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add this
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    # Other middleware...
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
 ]
+
 
 # Static files storage  
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -51,10 +47,8 @@ TEMPLATES = [
 
 SECRET_KEY = 'Q_xVSDKQDDuqQLSXZo_EfXibkA9Iwnb2PMcq_TJaBNyqwSGrexrG-sGLcY1xvi6PpzI'
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
+
+
 
 
 
@@ -64,7 +58,8 @@ DEBUG = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+     'django.contrib.sessions.middleware.SessionMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
