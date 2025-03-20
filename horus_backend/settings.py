@@ -14,6 +14,25 @@ INSTALLED_APPS = [
     "django_celery_beat",
     
 ]
+
+import os  
+
+# Static files settings  
+STATIC_URL = "/static/"  
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # Collects static files here  
+
+# Enable WhiteNoise for serving static files  
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add this
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    # Other middleware...
+]
+
+# Static files storage  
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
