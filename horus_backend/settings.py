@@ -78,7 +78,7 @@ MIDDLEWARE = [
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173","https://horussyndicate.netlify.app" # Adjust for your frontend URL
+    "http://localhost:5173","https://hurossyndicate.netlify.app/" # Adjust for your frontend URL
 ]
 ROOT_URLCONF = 'horus_backend.urls'
 
