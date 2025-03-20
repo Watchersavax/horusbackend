@@ -39,7 +39,7 @@ STATICFILES_DIRS = [
 
 
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "horusbackend.onrender.com"]
 DEBUG = True
 
 
@@ -64,7 +64,7 @@ MIDDLEWARE = [
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Adjust for your frontend URL
+    "http://localhost:5173","https://horussyndicate.netlify.app" # Adjust for your frontend URL
 ]
 ROOT_URLCONF = 'horus_backend.urls'
 
