@@ -1,6 +1,21 @@
 from django.contrib import admin
 from .models import TwitterUser, EngagementTweet, EngagementHistory
 
+from .models import SubmittedTweet
+
+@admin.register(SubmittedTweet)
+class SubmittedTweetAdmin(admin.ModelAdmin):
+    list_display = ('twitter_user', 'tweet_url', 'submitted_at', 'is_approved')
+    list_filter = ('is_approved',)
+    search_fields = ('twitter_user__twitter_handle', 'tweet_url')
+    actions = ['approve_tweets']
+
+    def approve_tweets(self, request, queryset):
+        queryset.update(is_approved=True)
+        self.message_user(request, "Selected tweets have been approved.")
+
+    approve_tweets.short_description = "Approve selected tweets"
+
 @admin.register(TwitterUser)
 class TwitterUserAdmin(admin.ModelAdmin):
     list_display = ("user", "twitter_handle", "wallet_address", "points")

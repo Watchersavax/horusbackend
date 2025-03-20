@@ -76,6 +76,16 @@ MIDDLEWARE = [
 #     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 # ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (  # 🔥 Allow unauthenticated users by default
+        'rest_framework.permissions.AllowAny',
+    ),
+}
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173","https://hurossyndicate.netlify.app" # Adjust for your frontend URL

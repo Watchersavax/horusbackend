@@ -7,6 +7,8 @@ from .views import (
     get_engagement_tweets,
     engagement_action,
     fetch_tweet_oembed,
+    submit_tweet, 
+    get_submitted_tweets
 )
 
 urlpatterns = [
@@ -17,4 +19,6 @@ urlpatterns = [
     path('api/engagement-tweets/', get_engagement_tweets, name='get_engagement_tweets'),
     path('api/engagement/', engagement_action, name='engagement_action'),  # ✅ Match frontend POST to /api/engagement/
     path("api/fetch-tweet-oembed/", fetch_tweet_oembed, name="fetch_tweet_oembed"),
+    path('api/submit-tweet/', submit_tweet, name="submit_tweet"),
+    path('api/submitted-tweets/', get_submitted_tweets, name="submitted_tweets"),
 ]

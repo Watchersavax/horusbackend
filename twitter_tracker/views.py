@@ -7,11 +7,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.core.paginator import Paginator
-from .models import TwitterUser, EngagementTweet, EngagementHistory
+from .models import TwitterUser, EngagementTweet, EngagementHistory, SubmittedTweet
 from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
 from django.contrib.auth.decorators import login_required
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -306,3 +308,82 @@ def fetch_tweet_oembed(request):
             return JsonResponse({"error": "Failed to fetch tweet embed", "status": response.status_code}, status=400)
     except requests.exceptions.RequestException as e:
         return JsonResponse({"error": "Error fetching tweet", "details": str(e)}, status=500)
+
+
+
+from django.http import JsonResponse
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import TwitterUser, SubmittedTweet
+
+@csrf_exempt
+@api_view(['POST'])
+def submit_tweet(request):
+    """
+    Allows users to submit tweets without requiring authentication.
+    """
+    tweet_url = request.data.get('tweet_url')
+    description = request.data.get('description', "")
+
+    if not tweet_url:
+        return Response({"error": "Tweet URL is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Get username from frontend request
+    username = request.data.get('username')  # Sent from frontend
+    if not username:
+        return Response({"error": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # ✅ Get TwitterUser based on the provided username
+        user = TwitterUser.objects.get(twitter_handle=username)
+    except TwitterUser.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # ✅ Limit to 3 tweets per 24 hours
+    if SubmittedTweet.tweets_in_last_24_hours(user) >= 3:
+        return Response({"error": "You can only submit up to 3 tweets per 24 hours."}, status=status.HTTP_403_FORBIDDEN)
+
+    # ✅ Prevent duplicate tweet submission
+    if SubmittedTweet.objects.filter(tweet_url=tweet_url).exists():
+        return Response({"error": "This tweet has already been submitted."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Save submitted tweet
+    SubmittedTweet.objects.create(twitter_user=user, tweet_url=tweet_url, description=description)
+
+    return Response({"message": "Tweet submitted successfully! Awaiting review."}, status=status.HTTP_201_CREATED)
+
+
+
+@csrf_exempt
+@api_view(['GET'])
+def get_submitted_tweets(request):
+    """
+    Fetch tweets submitted by the currently logged-in user only.
+    """
+    username = request.GET.get("username")
+
+    if not username:
+        return JsonResponse({"error": "Username required."}, status=400)
+
+    try:
+        # ✅ Get the user based on username
+        user = TwitterUser.objects.get(twitter_handle=username)
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found."}, status=404)
+
+    # ✅ Fetch only tweets submitted by this user
+    tweets = SubmittedTweet.objects.filter(twitter_user=user).order_by('-submitted_at')
+    
+    data = [{
+        "id": tweet.id,
+        "tweet_url": tweet.tweet_url,
+        "description": tweet.description,
+        "submitted_at": tweet.submitted_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "is_approved": tweet.is_approved  # ✅ Return approval status
+    } for tweet in tweets]
+
+    return JsonResponse({"submitted_tweets": data}, status=200)
+

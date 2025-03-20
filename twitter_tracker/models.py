@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 import random
-
+from django.utils import timezone
+from datetime import timedelta
 # class TwitterUser(models.Model):
 #     # models.py
 #     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
@@ -67,3 +68,22 @@ class EngagementHistory(models.Model):
 
     def __str__(self):
         return f"{self.twitter_user.twitter_handle} - {self.task_type} - {self.tweet}"
+
+
+
+class SubmittedTweet(models.Model):
+    twitter_user = models.ForeignKey(TwitterUser, on_delete=models.CASCADE)
+    tweet_url = models.URLField(unique=True, help_text="User-submitted Tweet URL")
+    description = models.CharField(max_length=255, blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)  # ✅ New field for approval
+
+
+    def __str__(self):
+        return f"{self.twitter_user.twitter_handle} - {self.tweet_url}"
+
+    @staticmethod
+    def tweets_in_last_24_hours(user):
+        time_threshold = timezone.now() - timedelta(hours=24)
+        
+        return SubmittedTweet.objects.filter(twitter_user=user, submitted_at__gte=time_threshold).count()
