@@ -285,3 +285,24 @@ def get_twitter_access_token(oauth_token, oauth_verifier):
         return data
     else:
         raise Exception('Failed to get Twitter access token')
+
+
+
+
+
+@csrf_exempt
+def fetch_tweet_oembed(request):
+    tweet_url = request.GET.get("url")
+    if not tweet_url:
+        return JsonResponse({"error": "Missing tweet URL"}, status=400)
+
+    oembed_url = f"https://publish.twitter.com/oembed?url={tweet_url}"
+
+    try:
+        response = requests.get(oembed_url)
+        if response.status_code == 200:
+            return JsonResponse(response.json())
+        else:
+            return JsonResponse({"error": "Failed to fetch tweet embed", "status": response.status_code}, status=400)
+    except requests.exceptions.RequestException as e:
+        return JsonResponse({"error": "Error fetching tweet", "details": str(e)}, status=500)

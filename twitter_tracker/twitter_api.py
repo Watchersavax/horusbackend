@@ -17,3 +17,5 @@ def get_twitter_data():
     print("🟢 Twitter API Response:", response.json())
 
     return response.json()
+
+
