@@ -88,7 +88,7 @@ REST_FRAMEWORK = {
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173","https://hurossyndicate.netlify.app" # Adjust for your frontend URL
+    "http://localhost:5173","https://hurossyndicate.netlify.app", "https://horussyndicate.xyz" # Adjust for your frontend URL
 ]
 ROOT_URLCONF = 'horus_backend.urls'
 
