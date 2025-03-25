@@ -8,8 +8,12 @@ from .views import (
     engagement_action,
     fetch_tweet_oembed,
     submit_tweet, 
-    get_submitted_tweets
+    get_submitted_tweets,
+    submit_application,
+    check_application,
+    
 )
+from .backup_views import backup_database
 
 urlpatterns = [
     path('api/twitter-login/', twitter_login, name='twitter-login'),
@@ -21,4 +25,7 @@ urlpatterns = [
     path("api/fetch-tweet-oembed/", fetch_tweet_oembed, name="fetch_tweet_oembed"),
     path('api/submit-tweet/', submit_tweet, name="submit_tweet"),
     path('api/submitted-tweets/', get_submitted_tweets, name="submitted_tweets"),
+    path("api/submit-application/", submit_application, name="submit_application"),
+    path("api/check-application/", check_application, name="check_application"),
+    path("api/db-backup/", backup_database, name="db_backup"),
 ]

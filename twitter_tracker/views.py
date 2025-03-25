@@ -7,13 +7,14 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.core.paginator import Paginator
-from .models import TwitterUser, EngagementTweet, EngagementHistory, SubmittedTweet
+from .models import TwitterUser, EngagementTweet, EngagementHistory, SubmittedTweet, UserApplication
 from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
 from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,7 @@ def twitter_user(request):
                 "profile_image": user.profile_image,
                 "wallet_address": user.wallet_address,
                 "points": user.points,
+                "has_completed_application": user.has_completed_application,  # ✅ Send application status
             })
         except TwitterUser.DoesNotExist:
             return JsonResponse({"error": "User not found"}, status=404)
@@ -386,4 +388,64 @@ def get_submitted_tweets(request):
     } for tweet in tweets]
 
     return JsonResponse({"submitted_tweets": data}, status=200)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def submit_application(request):
+    """
+    Allows users to submit an application only once.
+    """
+    username = request.data.get("username")
+    motivation = request.data.get("motivation")
+    experience = request.data.get("experience")
+    skills = request.data.get("skills")
+    discord_handle = request.data.get("discord_handle")
+
+    if not username or not motivation or not experience or not skills or not discord_handle:
+        return JsonResponse({"error": "All fields are required."}, status=400)
+
+    try:
+        user = TwitterUser.objects.get(twitter_handle=username)
+
+        # 🔥 **Enforce Fresh Query to Prevent Stale Data Issues**
+        application_exists = UserApplication.objects.filter(twitter_user=user).count() > 0
+
+        if application_exists:
+            return JsonResponse({"error": "Application already submitted."}, status=400)
+
+        # ✅ Now save the new application
+        UserApplication.objects.create(
+            twitter_user=user,
+            motivation=motivation,
+            experience=experience,
+            skills=skills,
+            discord_handle=discord_handle
+        )
+
+        return JsonResponse({"message": "Application submitted successfully!"}, status=201)
+
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found."}, status=404)
+
+@csrf_exempt
+def check_application(request):
+    """
+    Check if the user has submitted an application.
+    """
+    username = request.GET.get("username")
+    
+    if not username:
+        return JsonResponse({"error": "Username is required."}, status=400)
+
+    try:
+        user = TwitterUser.objects.get(twitter_handle=username)
+
+        # ✅ Fetch application explicitly and count
+        application_count = UserApplication.objects.filter(twitter_user=user).count()
+        
+        return JsonResponse({"application_exists": application_count > 0})
+
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found."}, status=404)
 

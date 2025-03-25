@@ -21,6 +21,8 @@ class TwitterUser(models.Model):
     profile_image = models.URLField(null=True, blank=True)
     wallet_address = models.CharField(max_length=255, null=True, blank=True)
     points = models.IntegerField(default=0)
+    has_completed_application = models.BooleanField(default=False)  # ✅ Track if user submitted the form
+
 
     def save(self, *args, **kwargs):
         default_images = [
@@ -87,3 +89,15 @@ class SubmittedTweet(models.Model):
         time_threshold = timezone.now() - timedelta(hours=24)
         
         return SubmittedTweet.objects.filter(twitter_user=user, submitted_at__gte=time_threshold).count()
+
+class UserApplication(models.Model):
+    twitter_user = models.OneToOneField(TwitterUser, on_delete=models.CASCADE)
+    motivation = models.TextField()
+    experience = models.TextField()
+    skills = models.TextField()
+    discord_handle = models.CharField(max_length=255)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        return f"Application - {self.twitter_user.twitter_handle}"        

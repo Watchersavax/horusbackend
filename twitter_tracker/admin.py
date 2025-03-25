@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import TwitterUser, EngagementTweet, EngagementHistory
 
-from .models import SubmittedTweet
+from .models import SubmittedTweet, UserApplication
 
 @admin.register(SubmittedTweet)
 class SubmittedTweetAdmin(admin.ModelAdmin):
@@ -28,3 +28,19 @@ class EngagementTweetAdmin(admin.ModelAdmin):
 class EngagementHistoryAdmin(admin.ModelAdmin):
     list_display = ("twitter_user", "tweet", "task_type", "points_awarded", "timestamp")
 
+
+@admin.register(UserApplication)
+class UserApplicationAdmin(admin.ModelAdmin):
+    list_display = ("twitter_user", "discord_handle", "submitted_at")  # Display key fields in the admin list view
+    list_filter = ("submitted_at",)  # Filter by submission date
+    search_fields = ("twitter_user__twitter_handle", "discord_handle", "motivation", "experience", "skills")  # Allow searching
+    readonly_fields = ("twitter_user", "motivation", "experience", "skills", "discord_handle", "submitted_at")  # Prevent editing
+
+    fieldsets = (
+        ("User Info", {
+            "fields": ("twitter_user", "discord_handle", "submitted_at"),
+        }),
+        ("Application Responses", {
+            "fields": ("motivation", "experience", "skills"),
+        }),
+    )
