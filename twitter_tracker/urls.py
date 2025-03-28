@@ -13,6 +13,7 @@ from .views import (
     check_application,
     generate_referral_link,   # ✅ NEW: Generate referral link
     handle_referral_signup,   # ✅ NEW: Process referral signups
+    get_total_referrals,
     
 )
 from .backup_views import backup_database
@@ -33,4 +34,6 @@ urlpatterns = [
         # ✅ Referral System
     path("api/referral-link/", generate_referral_link, name="generate_referral_link"),
     path("api/referral-signup/", handle_referral_signup, name="handle_referral_signup"),
+    path('api/get_total_referrals/', get_total_referrals, name='get_total_referrals'),
+
 ]

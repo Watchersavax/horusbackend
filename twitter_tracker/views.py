@@ -493,3 +493,22 @@ def get_referral_link(request):
         return JsonResponse({"referral_link": referral_link})
     except TwitterUser.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
+
+
+@api_view(['GET'])
+def get_total_referrals(request):
+    username = request.GET.get("username")
+
+    if not username:
+        return JsonResponse({"error": "Username required"}, status=400)
+
+    try:
+        user = TwitterUser.objects.get(twitter_handle=username)
+
+        # ✅ Count how many users were referred by this user
+        referral_count = TwitterUser.objects.filter(referred_by=user).count()
+
+        return JsonResponse({"username": user.twitter_handle, "total_referrals": referral_count})
+
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
