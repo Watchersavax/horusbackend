@@ -34,57 +34,70 @@ def twitter_login(request):
 
 
 ### 🔹 Twitter OAuth Callback / User Handling
-
 @csrf_exempt
 def twitter_user(request):
     if request.method == "POST":
-        body = json.loads(request.body)
-        oauth_token = body.get("oauth_token")
-        oauth_verifier = body.get("oauth_verifier")
-
-        if not oauth_token or not oauth_verifier:
-            return JsonResponse({"error": "Missing OAuth token or verifier"}, status=400)
-
         try:
-            access_token_data = get_twitter_access_token(oauth_token, oauth_verifier)
-        except Exception as e:
-            logger.error(f"Access token fetch error: {e}")
-            return JsonResponse({"error": "Failed to get access token"}, status=400)
+            body = json.loads(request.body)
+            logger.info(f"POST Request Body: {body}")  # ✅ Debugging log
 
-        twitter_handle = access_token_data.get('screen_name')
-        profile_image = access_token_data.get('profile_image_url_https', '')
+            oauth_token = body.get("oauth_token")
+            oauth_verifier = body.get("oauth_verifier")
+            referral_code = body.get("referral_code")  # ✅ Referrer’s Twitter handle
 
-        if not twitter_handle:
-            return JsonResponse({"error": "Failed to fetch Twitter handle"}, status=400)
+            if not oauth_token or not oauth_verifier:
+                return JsonResponse({"error": "Missing OAuth token or verifier"}, status=400)
 
-        # Handle user assignment safely
-        twitter_user_data = {
-            "profile_image": profile_image
-        }
+            # ✅ Get Twitter access token
+            try:
+                access_token_data = get_twitter_access_token(oauth_token, oauth_verifier)
+            except Exception as e:
+                logger.error(f"Access token fetch error: {e}")
+                return JsonResponse({"error": "Failed to get access token"}, status=400)
 
-        if request.user.is_authenticated:
-            twitter_user_data["user"] = request.user
+            twitter_handle = access_token_data.get("screen_name")
+            profile_image = access_token_data.get("profile_image_url_https", "")
 
-        try:
-            user, created = TwitterUser.objects.get_or_create(
-                twitter_handle=twitter_handle,
-                defaults=twitter_user_data
-            )
-        except Exception as e:
-            logger.error(f"Error creating/fetching TwitterUser: {e}")
-            return JsonResponse({"error": "Failed to create or fetch Twitter user"}, status=500)
+            if not twitter_handle:
+                return JsonResponse({"error": "Failed to fetch Twitter handle"}, status=400)
 
-        # Update profile image if needed
-        if not created and profile_image and user.profile_image != profile_image:
-            user.profile_image = profile_image
-            user.save()
+            # ✅ Get or create user
+            try:
+                user, created = TwitterUser.objects.get_or_create(
+                    twitter_handle=twitter_handle,
+                    defaults={"profile_image": profile_image}
+                )
+            except Exception as e:
+                logger.error(f"Error creating/fetching TwitterUser: {e}")
+                return JsonResponse({"error": "Failed to create or fetch Twitter user"}, status=500)
 
-        return JsonResponse({
-            "username": user.twitter_handle,
-            "profile_image": user.profile_image,
-            "wallet_address": user.wallet_address,
-            "points": user.points,
-        })
+            # ✅ Update profile image if changed
+            if not created and profile_image and user.profile_image != profile_image:
+                user.profile_image = profile_image
+                user.save()
+
+            # ✅ Handle referral system
+            if created and referral_code:
+                try:
+                    referrer = TwitterUser.objects.get(twitter_handle=referral_code)
+                    referrer.points += 10
+                    referrer.save()
+                    user.referred_by = referrer  # ✅ Track referrer
+                    user.save()
+                    logger.info(f"Referral success! {referrer.twitter_handle} earned 10 points")
+                except TwitterUser.DoesNotExist:
+                    logger.warning(f"Invalid referral code used: {referral_code}")
+
+            return JsonResponse({
+                "username": user.twitter_handle,
+                "profile_image": user.profile_image,
+                "wallet_address": user.wallet_address,
+                "points": user.points,
+                "referral_code": user.referral_code,  # ✅ Twitter handle as referral code
+            })
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     elif request.method == "GET":
         username = request.GET.get("username")
@@ -98,77 +111,91 @@ def twitter_user(request):
                 "profile_image": user.profile_image,
                 "wallet_address": user.wallet_address,
                 "points": user.points,
-                "has_completed_application": user.has_completed_application,  # ✅ Send application status
+                "referral_code": user.referral_code,  # ✅ Include referral code
             })
         except TwitterUser.DoesNotExist:
             return JsonResponse({"error": "User not found"}, status=404)
 
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
-# import requests
+### 🔹 Get Referral Link
+@api_view(['GET'])
+def generate_referral_link(request):
+    username = request.GET.get("username")
 
-# @csrf_exempt
-# def twitter_user(request):
-#     if request.method == "POST":
-#         body = json.loads(request.body)
-#         oauth_token = body.get("oauth_token")
-#         oauth_verifier = body.get("oauth_verifier")
+    if not username:
+        return JsonResponse({"error": "Username required"}, status=400)
 
-#         if not oauth_token or not oauth_verifier:
-#             return JsonResponse({"error": "Missing OAuth token or verifier"}, status=400)
+    try:
+        user = TwitterUser.objects.get(twitter_handle=username)
+        referral_link = f"http://localhost:5173/ref={user.referral_code}"
+        return JsonResponse({"referral_link": referral_link})
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
 
-#         try:
-#             access_token_data = get_twitter_access_token(oauth_token, oauth_verifier)
-#             logger.info(f"Full Twitter API Response: {json.dumps(access_token_data, indent=2)}")
-#         except Exception as e:
-#             logger.error(f"Access token fetch error: {e}")
-#             return JsonResponse({"error": "Failed to get access token"}, status=400)
+@csrf_exempt
+def handle_referral_signup(request):
+    if request.method == "POST":
+        body = json.loads(request.body)
+        twitter_handle = body.get("twitter_handle")
+        profile_image = body.get("profile_image", "")
+        referral_code = body.get("referral_code")  # ✅ This is now the referrer's Twitter handle
 
-#         twitter_handle = access_token_data.get("screen_name")
-#         user_id = access_token_data.get("user_id")
+        if not twitter_handle:
+            return JsonResponse({"error": "Twitter handle is required"}, status=400)
 
-#         if not twitter_handle:
-#             return JsonResponse({"error": "Failed to fetch Twitter handle"}, status=400)
+        try:
+            user, created = TwitterUser.objects.get_or_create(
+                twitter_handle=twitter_handle,
+                defaults={"profile_image": profile_image}
+            )
+        except Exception as e:
+            logger.error(f"Error creating/fetching TwitterUser: {e}")
+            return JsonResponse({"error": "Failed to create or fetch Twitter user"}, status=500)
 
-#         # ✅ Step 1: Make an additional request to get full user details
-#         profile_image = ""
-#         try:
-#             twitter_api_url = f"https://api.twitter.com/1.1/users/show.json?screen_name={twitter_handle}"
-#             headers = {
-#                 "Authorization": f"Bearer YOUR_TWITTER_BEARER_TOKEN"  # 🔥 Replace with your actual Twitter Bearer Token
-#             }
-#             response = requests.get(twitter_api_url, headers=headers)
-#             user_data = response.json()
-#             logger.info(f"Twitter User Data Response: {json.dumps(user_data, indent=2)}")
+        # ✅ Update profile image if changed
+        if not created and profile_image and user.profile_image != profile_image:
+            user.profile_image = profile_image
+            user.save()
 
-#             # ✅ Extract profile image from the full user data
-#             profile_image = user_data.get("profile_image_url_https", "")
-#         except Exception as e:
-#             logger.error(f"Failed to fetch user profile from Twitter API: {e}")
+        # ✅ Handle referral points if a valid Twitter handle is provided
+        if created and referral_code:
+            try:
+                referrer = TwitterUser.objects.get(twitter_handle=referral_code)
+                referrer.points += 10
+                referrer.save()
+                user.referred_by = referrer  # ✅ Track who referred them
+                user.save()
+                logger.info(f"Referral success! {referrer.twitter_handle} earned 10 points")
+            except TwitterUser.DoesNotExist:
+                logger.warning(f"Invalid referral code used: {referral_code}")
 
-#         if not profile_image:
-#             return JsonResponse({
-#                 "error": "Twitter did not return a profile image",
-#                 "api_response": access_token_data  # Debugging
-#             }, status=400)
+        return JsonResponse({
+            "username": user.twitter_handle,
+            "profile_image": user.profile_image,
+            "wallet_address": user.wallet_address,
+            "points": user.points,
+            "referral_code": user.referral_code,  # ✅ Return Twitter handle as referral code
+        })
 
-#         # ✅ Step 2: Save or update the user in the database
-#         user, created = TwitterUser.objects.get_or_create(
-#             twitter_handle=twitter_handle
-#         )
-
-#         if not user.profile_image or user.profile_image != profile_image:
-#             user.profile_image = profile_image
-#             user.save()
-
-#         return JsonResponse({
-#             "username": user.twitter_handle,
-#             "profile_image": user.profile_image,
-#             "wallet_address": user.wallet_address,
-#             "points": user.points,
-#         })
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 
+
+
+### 🔹 Get Twitter Access Token Helper
+def get_twitter_access_token(oauth_token, oauth_verifier):
+    url = "https://api.twitter.com/oauth/access_token"
+    params = {
+        'oauth_token': oauth_token,
+        'oauth_verifier': oauth_verifier
+    }
+    response = requests.post(url, params=params)
+    if response.status_code == 200:
+        data = dict(x.split('=') for x in response.text.split('&'))
+        return data
+    else:
+        raise Exception('Failed to get Twitter access token')
 
 
 ### 🔹 Wallet Submission / Update
@@ -449,3 +476,20 @@ def check_application(request):
     except TwitterUser.DoesNotExist:
         return JsonResponse({"error": "User not found."}, status=404)
 
+
+
+
+
+@api_view(['GET'])
+def get_referral_link(request):
+    username = request.GET.get("username")
+
+    if not username:
+        return JsonResponse({"error": "Username required"}, status=400)
+
+    try:
+        user = TwitterUser.objects.get(twitter_handle=username)
+        referral_link = f"https://horus.app/signup?ref={user.referral_code}"
+        return JsonResponse({"referral_link": referral_link})
+    except TwitterUser.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)

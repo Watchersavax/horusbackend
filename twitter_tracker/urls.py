@@ -11,6 +11,8 @@ from .views import (
     get_submitted_tweets,
     submit_application,
     check_application,
+    generate_referral_link,   # ✅ NEW: Generate referral link
+    handle_referral_signup,   # ✅ NEW: Process referral signups
     
 )
 from .backup_views import backup_database
@@ -28,4 +30,7 @@ urlpatterns = [
     path("api/submit-application/", submit_application, name="submit_application"),
     path("api/check-application/", check_application, name="check_application"),
     path("api/db-backup/", backup_database, name="db_backup"),
+        # ✅ Referral System
+    path("api/referral-link/", generate_referral_link, name="generate_referral_link"),
+    path("api/referral-signup/", handle_referral_signup, name="handle_referral_signup"),
 ]

@@ -18,7 +18,7 @@ class SubmittedTweetAdmin(admin.ModelAdmin):
 
 @admin.register(TwitterUser)
 class TwitterUserAdmin(admin.ModelAdmin):
-    list_display = ("user", "twitter_handle", "wallet_address", "points")
+    list_display = ("user", "twitter_handle", "wallet_address", "points", "referred_by", "referral_code")
 
 @admin.register(EngagementTweet)
 class EngagementTweetAdmin(admin.ModelAdmin):

@@ -3,16 +3,8 @@ from django.contrib.auth.models import User
 import random
 from django.utils import timezone
 from datetime import timedelta
-# class TwitterUser(models.Model):
-#     # models.py
-#     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
-#     twitter_handle = models.CharField(max_length=255, unique=True)
-#     profile_image = models.URLField(default="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQg6jwYSUYcKvlShgwuO90cCWWAIz7PblUFIA&s")
-#     wallet_address = models.CharField(max_length=255, null=True, blank=True)
-#     points = models.IntegerField(default=0)
+import uuid
 
-#     def __str__(self):
-#         return self.twitter_handle
 
 
 class TwitterUser(models.Model):
@@ -23,8 +15,16 @@ class TwitterUser(models.Model):
     points = models.IntegerField(default=0)
     has_completed_application = models.BooleanField(default=False)  # ✅ Track if user submitted the form
 
+  
+    referred_by = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="referrals")
 
+    @property
+    def referral_code(self):
+        """Referral code is simply the Twitter handle."""
+        return self.twitter_handle
+    
     def save(self, *args, **kwargs):
+
         default_images = [
             "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQg6jwYSUYcKvlShgwuO90cCWWAIz7PblUFIA&s",
             "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSohm5827LWyoZHVQTUkAjO0hC6Zwh77Z0qSg&s",
@@ -47,6 +47,12 @@ class TwitterUser(models.Model):
     def __str__(self):
         return self.twitter_handle      
 
+
+def generate_unique_referral_code():
+    while True:
+        new_code = str(uuid.uuid4().hex[:8])  # Generate a random 8-char code
+        if not TwitterUser.objects.filter(referral_code=new_code).exists():
+            return new_code
 
 
 class EngagementTweet(models.Model):
